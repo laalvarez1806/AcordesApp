@@ -141,17 +141,18 @@
     <div id="appContent" style="display: none">
       <header>🎸 Biblioteca de Acordes</header>
       <main>
+        <!-- Subir archivos desde el explorador -->
         <input
           type="text"
           id="nombreCancion"
           placeholder="Nombre de la canción"
         />
         <input type="file" id="archivoCancion" accept=".pdf,.jpg,.png" />
-        <button onclick="agregarCancion()">Agregar canción</button>
+        <button onclick="agregarCancion()">Agregar archivo</button>
 
-        <!-- Nueva opción: tomar foto con la cámara -->
+        <!-- Tomar foto con la cámara -->
         <input type="file" id="fotoCancion" accept="image/*" capture="camera" />
-        <button onclick="agregarFoto()">Agregar foto</button>
+        <button onclick="agregarFoto()">Tomar foto</button>
 
         <input type="text" id="buscador" placeholder="Buscar canción..." />
 
