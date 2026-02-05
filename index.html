@@ -93,11 +93,10 @@
       <button onclick="login()">Entrar</button>
     </div>
 
-    <!-- CONTENIDO DE LA APP (oculto hasta login) -->
+    <!-- CONTENIDO DE LA APP -->
     <div id="appContent" style="display: none">
       <header>🎸 Biblioteca de Acordes</header>
       <main>
-        <!-- Subir archivos desde el explorador -->
         <input
           type="text"
           id="nombreCancion"
@@ -106,7 +105,6 @@
         <input type="file" id="archivoCancion" accept=".pdf,.jpg,.png" />
         <button onclick="agregarCancion()">Agregar archivo</button>
 
-        <!-- Tomar foto con la cámara -->
         <input type="file" id="fotoCancion" accept="image/*" capture="camera" />
         <button onclick="agregarFoto()">Tomar foto</button>
 
@@ -115,14 +113,16 @@
         <h2>📚 Biblioteca</h2>
         <ul id="listaCanciones"></ul>
 
-        <h2>🎶 Setlist (Canciones a tocar)</h2>
+        <h2>🎶 Setlist</h2>
         <ul id="listaSetlist"></ul>
       </main>
     </div>
 
     <script>
       const PASSWORD = "MiClaveSecreta"; // cámbiala por tu clave personal
+      let db;
 
+      // LOGIN
       function login() {
         const input = document.getElementById("passwordInput").value;
         if (input === PASSWORD) {
@@ -133,95 +133,77 @@
         }
       }
 
-      let canciones = JSON.parse(localStorage.getItem("canciones")) || [];
-      let setlist = JSON.parse(localStorage.getItem("setlist")) || [];
+      // Abrir IndexedDB
+      const request = indexedDB.open("BibliotecaAcordes", 1);
+      request.onupgradeneeded = function (event) {
+        db = event.target.result;
+        const store = db.createObjectStore("canciones", {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+        store.createIndex("nombre", "nombre", { unique: false });
+      };
+      request.onsuccess = function (event) {
+        db = event.target.result;
+        mostrarLista();
+      };
 
+      // Guardar archivo
+      function guardarCancion(nombre, archivo) {
+        const transaction = db.transaction(["canciones"], "readwrite");
+        const store = transaction.objectStore("canciones");
+        store.add({ nombre: nombre, archivo: archivo, tipo: archivo.type });
+        transaction.oncomplete = () => mostrarLista();
+      }
+
+      // Mostrar lista
       function mostrarLista(filtro = "") {
+        const transaction = db.transaction(["canciones"], "readonly");
+        const store = transaction.objectStore("canciones");
+        const request = store.openCursor();
         const lista = document.getElementById("listaCanciones");
         lista.innerHTML = "";
-        canciones
-          .filter((c) => c.nombre.toLowerCase().includes(filtro.toLowerCase()))
-          .sort((a, b) => a.nombre.localeCompare(b.nombre))
-          .forEach((cancion, index) => {
-            const li = document.createElement("li");
 
-            const link = document.createElement("a");
-            link.textContent = cancion.nombre;
-            link.href = "#";
-            link.onclick = () => mostrarArchivo(index);
-
-            const setlistBtn = document.createElement("button");
-            setlistBtn.textContent = "➕ Setlist";
-            setlistBtn.className = "setlistBtn";
-            setlistBtn.onclick = () => agregarSetlist(index);
-
-            const eliminarBtn = document.createElement("button");
-            eliminarBtn.textContent = "🗑️";
-            eliminarBtn.className = "eliminarBtn";
-            eliminarBtn.onclick = () => eliminarCancion(index);
-
-            li.appendChild(link);
-            li.appendChild(setlistBtn);
-            li.appendChild(eliminarBtn);
-            lista.appendChild(li);
-          });
-        mostrarSetlist();
+        request.onsuccess = function (event) {
+          const cursor = event.target.result;
+          if (cursor) {
+            if (
+              cursor.value.nombre.toLowerCase().includes(filtro.toLowerCase())
+            ) {
+              const li = document.createElement("li");
+              const link = document.createElement("a");
+              link.textContent = cursor.value.nombre;
+              link.href = "#";
+              link.onclick = () => mostrarArchivo(cursor.value);
+              li.appendChild(link);
+              lista.appendChild(li);
+            }
+            cursor.continue();
+          }
+        };
       }
 
-      function mostrarSetlist() {
-        const lista = document.getElementById("listaSetlist");
-        lista.innerHTML = "";
-        setlist.forEach((cancion, index) => {
-          const li = document.createElement("li");
-
-          const link = document.createElement("a");
-          link.textContent = cancion.nombre;
-          link.href = "#";
-          link.onclick = () => mostrarArchivo(index);
-
-          const quitarBtn = document.createElement("button");
-          quitarBtn.textContent = "❌";
-          quitarBtn.className = "eliminarBtn";
-          quitarBtn.onclick = () => quitarSetlist(index);
-
-          li.appendChild(link);
-          li.appendChild(quitarBtn);
-          lista.appendChild(li);
-        });
+      // Mostrar archivo en pestaña nueva
+      function mostrarArchivo(cancion) {
+        const url = URL.createObjectURL(cancion.archivo);
+        window.open(url, "_blank");
       }
 
-      // Abrir archivo en pestaña nueva (más seguro en móvil)
-      function mostrarArchivo(index) {
-        const cancion = canciones[index];
-        window.open(cancion.url, "_blank");
-      }
-
-      function eliminarCancion(index) {
-        if (confirm("¿Seguro que quieres eliminar esta canción?")) {
-          canciones.splice(index, 1);
-          localStorage.setItem("canciones", JSON.stringify(canciones));
-          mostrarLista();
+      // Agregar archivo desde explorador
+      function agregarCancion() {
+        const nombre = document.getElementById("nombreCancion").value.trim();
+        const archivoInput = document.getElementById("archivoCancion");
+        if (!nombre || archivoInput.files.length === 0) {
+          alert("Por favor ingresa un nombre y selecciona un archivo.");
+          return;
         }
+        const archivo = archivoInput.files[0];
+        guardarCancion(nombre, archivo);
+        document.getElementById("nombreCancion").value = "";
+        archivoInput.value = "";
       }
 
-      function agregarSetlist(index) {
-        const cancion = canciones[index];
-        if (!setlist.find((c) => c.nombre === cancion.nombre)) {
-          setlist.push(cancion);
-          localStorage.setItem("setlist", JSON.stringify(setlist));
-          mostrarSetlist();
-        } else {
-          alert("Esta canción ya está en el setlist.");
-        }
-      }
-
-      function quitarSetlist(index) {
-        setlist.splice(index, 1);
-        localStorage.setItem("setlist", JSON.stringify(setlist));
-        mostrarSetlist();
-      }
-
-      // Compresión automática de fotos
+      // Comprimir imagen antes de guardar
       function comprimirImagen(file, callback) {
         const lector = new FileReader();
         lector.onload = function (event) {
@@ -235,33 +217,16 @@
             canvas.height = img.height * scale;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-            callback(dataUrl);
+            fetch(dataUrl)
+              .then((res) => res.blob())
+              .then((blob) => callback(blob));
           };
           img.src = event.target.result;
         };
         lector.readAsDataURL(file);
       }
 
-      function agregarCancion() {
-        const nombre = document.getElementById("nombreCancion").value.trim();
-        const archivoInput = document.getElementById("archivoCancion");
-        if (!nombre || archivoInput.files.length === 0) {
-          alert("Por favor ingresa un nombre y selecciona un archivo.");
-          return;
-        }
-        const archivo = archivoInput.files[0];
-        const lector = new FileReader();
-        lector.onload = function (e) {
-          const url = e.target.result;
-          canciones.push({ nombre, url, tipo: archivo.type });
-          localStorage.setItem("canciones", JSON.stringify(canciones));
-          document.getElementById("nombreCancion").value = "";
-          archivoInput.value = "";
-          mostrarLista();
-        };
-        lector.readAsDataURL(archivo);
-      }
-
+      // Agregar foto desde cámara
       function agregarFoto() {
         const archivoInput = document.getElementById("fotoCancion");
         if (archivoInput.files.length === 0) return;
@@ -271,23 +236,19 @@
         );
         if (!nombre) return;
 
-        // Comprimir la imagen antes de guardarla
-        comprimirImagen(archivo, function (url) {
-          canciones.push({ nombre, url, tipo: "image/jpeg" });
-          localStorage.setItem("canciones", JSON.stringify(canciones));
+        comprimirImagen(archivo, function (blob) {
+          guardarCancion(nombre, blob);
           archivoInput.value = "";
-          mostrarLista();
         });
       }
 
+      // Buscador
       document.getElementById("buscador").addEventListener("input", (e) => {
         mostrarLista(e.target.value);
       });
-
-      mostrarLista();
     </script>
 
-    <!-- Registro del service worker -->
+    <!-- Service Worker -->
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("service-worker.js");
