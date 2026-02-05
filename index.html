@@ -134,21 +134,30 @@
       }
 
       // Abrir IndexedDB
-      const request = indexedDB.open("BibliotecaAcordes", 1);
+      const request = indexedDB.open("BibliotecaAcordes", 2);
       request.onupgradeneeded = function (event) {
         db = event.target.result;
-        const store = db.createObjectStore("canciones", {
-          keyPath: "id",
-          autoIncrement: true,
-        });
-        store.createIndex("nombre", "nombre", { unique: false });
+        if (!db.objectStoreNames.contains("canciones")) {
+          const store = db.createObjectStore("canciones", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          store.createIndex("nombre", "nombre", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("setlist")) {
+          db.createObjectStore("setlist", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+        }
       };
       request.onsuccess = function (event) {
         db = event.target.result;
         mostrarLista();
+        mostrarSetlist();
       };
 
-      // Guardar archivo
+      // Guardar canción
       function guardarCancion(nombre, archivo) {
         const transaction = db.transaction(["canciones"], "readwrite");
         const store = transaction.objectStore("canciones");
@@ -156,7 +165,7 @@
         transaction.oncomplete = () => mostrarLista();
       }
 
-      // Mostrar lista
+      // Mostrar lista con botones
       function mostrarLista(filtro = "") {
         const transaction = db.transaction(["canciones"], "readonly");
         const store = transaction.objectStore("canciones");
@@ -171,11 +180,25 @@
               cursor.value.nombre.toLowerCase().includes(filtro.toLowerCase())
             ) {
               const li = document.createElement("li");
+
               const link = document.createElement("a");
               link.textContent = cursor.value.nombre;
               link.href = "#";
               link.onclick = () => mostrarArchivo(cursor.value);
+
+              const setlistBtn = document.createElement("button");
+              setlistBtn.textContent = "➕ Setlist";
+              setlistBtn.className = "setlistBtn";
+              setlistBtn.onclick = () => agregarSetlist(cursor.value);
+
+              const eliminarBtn = document.createElement("button");
+              eliminarBtn.textContent = "🗑️";
+              eliminarBtn.className = "eliminarBtn";
+              eliminarBtn.onclick = () => eliminarCancion(cursor.value.id);
+
               li.appendChild(link);
+              li.appendChild(setlistBtn);
+              li.appendChild(eliminarBtn);
               lista.appendChild(li);
             }
             cursor.continue();
@@ -183,10 +206,64 @@
         };
       }
 
-      // Mostrar archivo en pestaña nueva
+      // Mostrar archivo
       function mostrarArchivo(cancion) {
         const url = URL.createObjectURL(cancion.archivo);
         window.open(url, "_blank");
+      }
+
+      // Eliminar canción
+      function eliminarCancion(id) {
+        const transaction = db.transaction(["canciones"], "readwrite");
+        const store = transaction.objectStore("canciones");
+        store.delete(id);
+        transaction.oncomplete = () => mostrarLista();
+      }
+
+      // Setlist
+      function agregarSetlist(cancion) {
+        const transaction = db.transaction(["setlist"], "readwrite");
+        const store = transaction.objectStore("setlist");
+        store.add(cancion);
+        transaction.oncomplete = () => mostrarSetlist();
+      }
+
+      function mostrarSetlist() {
+        const transaction = db.transaction(["setlist"], "readonly");
+        const store = transaction.objectStore("setlist");
+        const request = store.openCursor();
+        const lista = document.getElementById("listaSetlist");
+        lista.innerHTML = "";
+
+        request.onsuccess = function (event) {
+          const cursor = event.target.result;
+          if (cursor) {
+            const li = document.createElement("li");
+
+            const link = document.createElement("a");
+            link.textContent = cursor.value.nombre;
+            link.href = "#";
+            link.onclick = () => mostrarArchivo(cursor.value);
+
+            const quitarBtn = document.createElement("button");
+            quitarBtn.textContent = "❌";
+            quitarBtn.className = "eliminarBtn";
+            quitarBtn.onclick = () => quitarSetlist(cursor.value.id);
+
+            li.appendChild(link);
+            li.appendChild(quitarBtn);
+            lista.appendChild(li);
+
+            cursor.continue();
+          }
+        };
+      }
+
+      function quitarSetlist(id) {
+        const transaction = db.transaction(["setlist"], "readwrite");
+        const store = transaction.objectStore("setlist");
+        store.delete(id);
+        transaction.oncomplete = () => mostrarSetlist();
       }
 
       // Agregar archivo desde explorador
