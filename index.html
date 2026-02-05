@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Biblioteca de Acordes</title>
+    <link rel="manifest" href="manifest.json" />
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -125,37 +126,65 @@
     </style>
   </head>
   <body>
-    <header>🎸 Biblioteca de Acordes</header>
-    <main>
+    <!-- LOGIN DE SEGURIDAD -->
+    <div id="loginScreen">
+      <h2>Acceso a Biblioteca</h2>
       <input
-        type="text"
-        id="nombreCancion"
-        placeholder="Nombre de la canción"
+        type="password"
+        id="passwordInput"
+        placeholder="Ingresa tu contraseña"
       />
-      <input type="file" id="archivoCancion" accept=".pdf,.jpg,.png" />
-      <button onclick="agregarCancion()">Agregar canción</button>
+      <button onclick="login()">Entrar</button>
+    </div>
 
-      <!-- Nueva opción: tomar foto con la cámara -->
-      <input type="file" id="fotoCancion" accept="image/*" capture="camera" />
-      <button onclick="agregarFoto()">Agregar foto</button>
+    <!-- CONTENIDO DE LA APP (oculto hasta login) -->
+    <div id="appContent" style="display: none">
+      <header>🎸 Biblioteca de Acordes</header>
+      <main>
+        <input
+          type="text"
+          id="nombreCancion"
+          placeholder="Nombre de la canción"
+        />
+        <input type="file" id="archivoCancion" accept=".pdf,.jpg,.png" />
+        <button onclick="agregarCancion()">Agregar canción</button>
 
-      <input type="text" id="buscador" placeholder="Buscar canción..." />
+        <!-- Nueva opción: tomar foto con la cámara -->
+        <input type="file" id="fotoCancion" accept="image/*" capture="camera" />
+        <button onclick="agregarFoto()">Agregar foto</button>
 
-      <h2>📚 Biblioteca</h2>
-      <ul id="listaCanciones"></ul>
+        <input type="text" id="buscador" placeholder="Buscar canción..." />
 
-      <h2>🎶 Setlist (Canciones a tocar)</h2>
-      <ul id="listaSetlist"></ul>
-    </main>
+        <h2>📚 Biblioteca</h2>
+        <ul id="listaCanciones"></ul>
 
-    <div id="pantallaCompleta">
-      <button id="volverBtn" onclick="cerrarPantallaCompleta()">Volver</button>
-      <button id="prevBtn" onclick="prevCancion()">Anterior</button>
-      <button id="nextBtn" onclick="nextCancion()">Siguiente</button>
-      <div id="contenido"></div>
+        <h2>🎶 Setlist (Canciones a tocar)</h2>
+        <ul id="listaSetlist"></ul>
+      </main>
+
+      <div id="pantallaCompleta">
+        <button id="volverBtn" onclick="cerrarPantallaCompleta()">
+          Volver
+        </button>
+        <button id="prevBtn" onclick="prevCancion()">Anterior</button>
+        <button id="nextBtn" onclick="nextCancion()">Siguiente</button>
+        <div id="contenido"></div>
+      </div>
     </div>
 
     <script>
+      const PASSWORD = "MiClaveSecreta"; // cámbiala por tu clave personal
+
+      function login() {
+        const input = document.getElementById("passwordInput").value;
+        if (input === PASSWORD) {
+          document.getElementById("loginScreen").style.display = "none";
+          document.getElementById("appContent").style.display = "block";
+        } else {
+          alert("Contraseña incorrecta");
+        }
+      }
+
       let canciones = JSON.parse(localStorage.getItem("canciones")) || [];
       let setlist = JSON.parse(localStorage.getItem("setlist")) || [];
       let currentIndex = 0;
@@ -316,7 +345,6 @@
 
       function agregarSetlist(index) {
         const cancion = canciones[index];
-        // Evitamos duplicados en el setlist
         if (!setlist.find((c) => c.nombre === cancion.nombre)) {
           setlist.push(cancion);
           localStorage.setItem("setlist", JSON.stringify(setlist));
@@ -337,6 +365,13 @@
       });
 
       mostrarLista();
+    </script>
+
+    <!-- Registro del service worker -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("service-worker.js");
+      }
     </script>
   </body>
 </html>
