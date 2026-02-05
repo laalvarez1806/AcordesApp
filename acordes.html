@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Biblioteca de Acordes</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f9f9f9;
+      }
+      header {
+        background: #3498db;
+        color: white;
+        padding: 15px;
+        text-align: center;
+        font-size: 1.5em;
+      }
+      main {
+        padding: 20px;
+      }
+      input,
+      button {
+        margin: 8px 0;
+        padding: 10px;
+        font-size: 1em;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+      }
+      button {
+        background: #3498db;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #2980b9;
+      }
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      li {
+        margin: 8px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+      a {
+        text-decoration: none;
+        color: #3498db;
+        font-size: 1.1em;
+        flex-grow: 1;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .eliminarBtn,
+      .setlistBtn {
+        border: none;
+        padding: 6px 10px;
+        font-size: 0.8em;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .eliminarBtn {
+        background: #e74c3c;
+        color: white;
+      }
+      .eliminarBtn:hover {
+        background: #c0392b;
+      }
+      .setlistBtn {
+        background: #2ecc71;
+        color: white;
+      }
+      .setlistBtn:hover {
+        background: #27ae60;
+      }
+      #pantallaCompleta {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #ffffff;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        z-index: 9999;
+      }
+      #pantallaCompleta iframe,
+      #pantallaCompleta img {
+        width: 100vw;
+        height: 100vh;
+        object-fit: contain;
+        border: none;
+      }
+      #volverBtn,
+      #prevBtn,
+      #nextBtn {
+        position: absolute;
+        top: 10px;
+        padding: 10px 15px;
+        background: #3498db;
+        color: #fff;
+        border: none;
+        font-size: 1em;
+        border-radius: 5px;
+        cursor: pointer;
+        z-index: 10000;
+      }
+      #volverBtn {
+        left: 10px;
+        background: #e74c3c;
+      }
+      #prevBtn {
+        left: 120px;
+      }
+      #nextBtn {
+        left: 220px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>🎸 Biblioteca de Acordes</header>
+    <main>
+      <input
+        type="text"
+        id="nombreCancion"
+        placeholder="Nombre de la canción"
+      />
+      <input type="file" id="archivoCancion" accept=".pdf,.jpg,.png" />
+      <button onclick="agregarCancion()">Agregar canción</button>
+
+      <!-- Nueva opción: tomar foto con la cámara -->
+      <input type="file" id="fotoCancion" accept="image/*" capture="camera" />
+      <button onclick="agregarFoto()">Agregar foto</button>
+
+      <input type="text" id="buscador" placeholder="Buscar canción..." />
+
+      <h2>📚 Biblioteca</h2>
+      <ul id="listaCanciones"></ul>
+
+      <h2>🎶 Setlist (Canciones a tocar)</h2>
+      <ul id="listaSetlist"></ul>
+    </main>
+
+    <div id="pantallaCompleta">
+      <button id="volverBtn" onclick="cerrarPantallaCompleta()">Volver</button>
+      <button id="prevBtn" onclick="prevCancion()">Anterior</button>
+      <button id="nextBtn" onclick="nextCancion()">Siguiente</button>
+      <div id="contenido"></div>
+    </div>
+
+    <script>
+      let canciones = JSON.parse(localStorage.getItem("canciones")) || [];
+      let setlist = JSON.parse(localStorage.getItem("setlist")) || [];
+      let currentIndex = 0;
+
+      function mostrarLista(filtro = "") {
+        const lista = document.getElementById("listaCanciones");
+        lista.innerHTML = "";
+        canciones
+          .filter((c) => c.nombre.toLowerCase().includes(filtro.toLowerCase()))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre))
+          .forEach((cancion, index) => {
+            const li = document.createElement("li");
+
+            const link = document.createElement("a");
+            link.textContent = cancion.nombre;
+            link.href = "#";
+            link.onclick = () => mostrarArchivo(index);
+
+            const setlistBtn = document.createElement("button");
+            setlistBtn.textContent = "➕ Setlist";
+            setlistBtn.className = "setlistBtn";
+            setlistBtn.onclick = () => agregarSetlist(index);
+
+            const eliminarBtn = document.createElement("button");
+            eliminarBtn.textContent = "🗑️";
+            eliminarBtn.className = "eliminarBtn";
+            eliminarBtn.onclick = () => eliminarCancion(index);
+
+            li.appendChild(link);
+            li.appendChild(setlistBtn);
+            li.appendChild(eliminarBtn);
+            lista.appendChild(li);
+          });
+        mostrarSetlist();
+      }
+
+      function mostrarSetlist() {
+        const lista = document.getElementById("listaSetlist");
+        lista.innerHTML = "";
+        setlist.forEach((cancion, index) => {
+          const li = document.createElement("li");
+
+          const link = document.createElement("a");
+          link.textContent = cancion.nombre;
+          link.href = "#";
+          link.onclick = () => mostrarArchivoSetlist(index);
+
+          const quitarBtn = document.createElement("button");
+          quitarBtn.textContent = "❌";
+          quitarBtn.className = "eliminarBtn";
+          quitarBtn.onclick = () => quitarSetlist(index);
+
+          li.appendChild(link);
+          li.appendChild(quitarBtn);
+          lista.appendChild(li);
+        });
+      }
+
+      function mostrarArchivo(index) {
+        const visor = document.getElementById("contenido");
+        const cancion = canciones[index];
+        visor.innerHTML = "";
+        if (cancion.tipo === "application/pdf") {
+          visor.innerHTML = `<iframe src="${cancion.url}" type="application/pdf" scrolling="auto"></iframe>`;
+        } else {
+          visor.innerHTML = `<img src="${cancion.url}" alt="Acordes">`;
+        }
+        const pantalla = document.getElementById("pantallaCompleta");
+        pantalla.style.display = "flex";
+        if (pantalla.requestFullscreen) pantalla.requestFullscreen();
+      }
+
+      function mostrarArchivoSetlist(index) {
+        currentIndex = index;
+        const visor = document.getElementById("contenido");
+        const cancion = setlist[index];
+        visor.innerHTML = "";
+        if (cancion.tipo === "application/pdf") {
+          visor.innerHTML = `<iframe src="${cancion.url}" type="application/pdf" scrolling="auto"></iframe>`;
+        } else {
+          visor.innerHTML = `<img src="${cancion.url}" alt="Acordes">`;
+        }
+        const pantalla = document.getElementById("pantallaCompleta");
+        pantalla.style.display = "flex";
+        if (pantalla.requestFullscreen) pantalla.requestFullscreen();
+      }
+
+      function prevCancion() {
+        if (currentIndex > 0) {
+          mostrarArchivoSetlist(currentIndex - 1);
+        }
+      }
+
+      function nextCancion() {
+        if (currentIndex < setlist.length - 1) {
+          mostrarArchivoSetlist(currentIndex + 1);
+        }
+      }
+
+      function cerrarPantallaCompleta() {
+        const pantalla = document.getElementById("pantallaCompleta");
+        pantalla.style.display = "none";
+        if (document.fullscreenElement) document.exitFullscreen();
+      }
+
+      function agregarCancion() {
+        const nombre = document.getElementById("nombreCancion").value.trim();
+        const archivoInput = document.getElementById("archivoCancion");
+        if (!nombre || archivoInput.files.length === 0) {
+          alert("Por favor ingresa un nombre y selecciona un archivo.");
+          return;
+        }
+        const archivo = archivoInput.files[0];
+        const lector = new FileReader();
+        lector.onload = function (e) {
+          const url = e.target.result;
+          canciones.push({ nombre, url, tipo: archivo.type });
+          localStorage.setItem("canciones", JSON.stringify(canciones));
+          document.getElementById("nombreCancion").value = "";
+          archivoInput.value = "";
+          mostrarLista();
+        };
+        lector.readAsDataURL(archivo);
+      }
+
+      function agregarFoto() {
+        const archivoInput = document.getElementById("fotoCancion");
+        if (archivoInput.files.length === 0) {
+          alert("Por favor toma una foto o selecciona una imagen.");
+          return;
+        }
+        const archivo = archivoInput.files[0];
+        const nombre = prompt(
+          "Ingresa el nombre de la canción para esta foto:",
+        );
+        if (!nombre) {
+          alert("Debes ingresar un nombre para la canción.");
+          return;
+        }
+        const lector = new FileReader();
+        lector.onload = function (e) {
+          const url = e.target.result;
+          canciones.push({ nombre, url, tipo: archivo.type });
+          localStorage.setItem("canciones", JSON.stringify(canciones));
+          archivoInput.value = "";
+          mostrarLista();
+        };
+        lector.readAsDataURL(archivo);
+      }
+
+      function eliminarCancion(index) {
+        if (confirm("¿Seguro que quieres eliminar esta canción?")) {
+          canciones.splice(index, 1);
+          localStorage.setItem("canciones", JSON.stringify(canciones));
+          mostrarLista();
+        }
+      }
+
+      function agregarSetlist(index) {
+        const cancion = canciones[index];
+        // Evitamos duplicados en el setlist
+        if (!setlist.find((c) => c.nombre === cancion.nombre)) {
+          setlist.push(cancion);
+          localStorage.setItem("setlist", JSON.stringify(setlist));
+          mostrarSetlist();
+        } else {
+          alert("Esta canción ya está en el setlist.");
+        }
+      }
+
+      function quitarSetlist(index) {
+        setlist.splice(index, 1);
+        localStorage.setItem("setlist", JSON.stringify(setlist));
+        mostrarSetlist();
+      }
+
+      document.getElementById("buscador").addEventListener("input", (e) => {
+        mostrarLista(e.target.value);
+      });
+
+      mostrarLista();
+    </script>
+  </body>
+</html>
