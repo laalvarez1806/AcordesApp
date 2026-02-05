@@ -208,10 +208,10 @@
         mostrarSetlist();
       };
 
-      function guardarCancion(nombre, archivo) {
+      function guardarCancion(nombre, archivoBlob) {
         const transaction = db.transaction(["canciones"], "readwrite");
         const store = transaction.objectStore("canciones");
-        store.add({ nombre, archivo, tipo: archivo.type });
+        store.add({ nombre, archivo: archivoBlob, tipo: archivoBlob.type });
         transaction.oncomplete = () => mostrarLista();
       }
 
